@@ -53,6 +53,9 @@ func parseTarget(input string) (*overrideTarget, error) {
 }
 
 func (t *Terraform) cleanup() {
+	if _, err := os.Stat(t.OverrideFilename); errors.Is(err, os.ErrNotExist) {
+		return
+	}
 	err := os.Remove(t.OverrideFilename)
 	if err != nil {
 		fmt.Printf("Could not remove proxy override file: %v\n", err)
@@ -65,8 +68,11 @@ func (t *Terraform) createOverrideFile() error {
 
 	files, err := t.determineTerraformFiles()
 	if err != nil {
-		fmt.Printf("Error reading terraform files: %v\n", err)
 		return err
+	}
+
+	if len(files) == 0 {
+		return errors.New("could not find any terraform files matchin '*.tf' pattern")
 	}
 
 	for _, unparsedTarget := range t.TargetProviders {
@@ -128,8 +134,7 @@ func (t *Terraform) generateProviderBlocks(config []*hclwrite.File, target *over
 func (t *Terraform) Run(args []string) error {
 	_, err := exec.LookPath(t.TerraformBinary)
 	if err != nil {
-		fmt.Printf("Terraform binary not found: %v\n", err)
-		return err
+		return fmt.Errorf("Terraform binary not found: %v\n", err)
 	}
 
 	// make sure to delete override file

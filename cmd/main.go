@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/kirecek/tf-proxy/internal/pkg/proxy"
 )
@@ -15,10 +16,15 @@ func main() {
 		}
 	}
 
-	proxyAddr := os.Getenv("TERRAFORM_HTTPS_PROXY")
+	proxyAddr := os.Getenv("TF_PROXY_HOST")
 	if proxyAddr == "" {
-		fmt.Println("'TERRAFORM_HTTPS_PROXY' not set")
+		fmt.Println("'TF_PROXY_HOST' not set")
 		os.Exit(1)
+	}
+
+	providers := []string{"backend/s3", "provider/aws"}
+	if v, ok := os.LookupEnv("TF_PROXY_PROVIDERS"); !ok {
+		providers = strings.Split(v, ",")
 	}
 
 	tf := proxy.Terraform{
@@ -26,7 +32,7 @@ func main() {
 		OverrideFilename: "terraform_proxy_providers_override.tf",
 		ProxyAddr:        proxyAddr,
 		KeepOverrideFile: false,
-		TargetProviders:  []string{"backend/s3", "provider/aws"},
+		TargetProviders:  providers,
 	}
 
 	err := tf.Run(os.Args[1:])

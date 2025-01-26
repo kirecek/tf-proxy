@@ -4,13 +4,14 @@ Experimental project that wraps terraform binary with purpose to proxy only spec
 
 ## Usage
 
-Set `TERRAFORM_HTTPS_PROXY` environment value and simply run `tf-proxy` binary instead of terrafom i.e. `tf-proxy init`.
+Set `TF_PROXY_HOST` environment variale and simply run `tf-proxy` binary instead of terrafom i.e. `tf-proxy init`.
 
-:warning: Configuration is not yet exposed and at the moment it's embeded only internaly set for AWS providers.
+At this stage, it's possible to have only one proxy and provider whitelist is done via `TF_PROXY_PROVIDERS`.
 
-```
-		TargetProviders:  []string{"backend/s3", "provider/aws"},
-```
+Format of the whitelist is comma separated list of providers and backends `provider/aws,backend/s3`. Whitelist format supports
+also aliases `provider/aws/example-alias`.
+
+Configuration will get more flexible and advanced once I shape use cases a bit more.
 
 ## How it works?
 
