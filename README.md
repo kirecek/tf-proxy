@@ -1,4 +1,4 @@
-# (WIP) tf-proxy
+# tf-proxy
 
 Experimental project that wraps terraform binary with purpose to proxy only specific providers.
 
