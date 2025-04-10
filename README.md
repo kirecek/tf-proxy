@@ -15,5 +15,21 @@ Configuration will get more flexible and advanced once I shape use cases a bit m
 
 ## How it works?
 
-![diagram](.docs/diagram.png)
+```mermaid
+sequenceDiagram
+    participant user
+    participant tf-proxy
+    participant terraform
+    participant filesystem
+
+    user ->> tf-proxy: Runs "tf-proxy"
+    filesystem  ->> tf-proxy: Read all provider resources
+    tf-proxy ->> filesystem: Create override for aws providers
+    filesystem -->> tf-proxy: Override file created
+    tf-proxy ->> terraform: Call Terraform binary with given  args
+    terraform -->> tf-proxy: Terraform command completes
+    tf-proxy ->> filesystem: Remove _override file
+    filesystem -->> tf-proxy: Override file removed
+    tf-proxy -->> user: Workflow completed
+```
 
