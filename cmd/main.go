@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 	"os"
-	"strings"
 
 	"github.com/kirecek/tf-proxy/internal/pkg/proxy"
 )
@@ -16,28 +15,32 @@ func main() {
 		}
 	}
 
-	proxyAddr := os.Getenv("TF_PROXY_HOST")
-	if proxyAddr == "" {
-		fmt.Println("'TF_PROXY_HOST' not set")
+	// Load configuration
+	config, err := proxy.LoadConfig(os.Getenv("TF_PROXY_CONFIG"))
+	if err != nil {
+		fmt.Printf("Error loading configuration: %v\n", err)
 		os.Exit(1)
 	}
 
-	providers := []string{"backend/s3", "provider/aws"}
-	if v, ok := os.LookupEnv("TF_PROXY_PROVIDERS"); !ok {
-		providers = strings.Split(v, ",")
+	// Get default proxy from environment if not set in config
+	if config.DefaultProxy == "" {
+		config.DefaultProxy = os.Getenv("TF_PROXY_HOST")
+		if config.DefaultProxy == "" {
+			fmt.Println("No default proxy configured. Set TF_PROXY_HOST or configure default_proxy in config file")
+			os.Exit(1)
+		}
 	}
 
 	tf := proxy.Terraform{
+		Config:           config,
 		TerraformBinary:  "terraform",
-		OverrideFilename: "terraform_proxy_providers_override.tf",
-		ProxyAddr:        proxyAddr,
+		OverrideFilename: "terraform_proxy_override.tf",
 		KeepOverrideFile: false,
-		TargetProviders:  providers,
 	}
 
-	err := tf.Run(os.Args[1:])
+	err = tf.Run(os.Args[1:])
 	if err != nil {
 		fmt.Printf("%v\n", err)
-		os.Exit(0)
+		os.Exit(1)
 	}
 }

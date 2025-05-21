@@ -14,42 +14,10 @@ import (
 )
 
 type Terraform struct {
-	ProxyAddr        string
-	OverrideFilename string
+	Config           *Config
 	TerraformBinary  string
+	OverrideFilename string
 	KeepOverrideFile bool
-	TargetProviders  []string
-}
-
-type overrideTarget struct {
-	resourceType string
-	name         string
-	alias        string
-	hasAlias     bool
-}
-
-func parseTarget(input string) (*overrideTarget, error) {
-	parts := strings.Split(input, "/")
-	if len(parts) < 2 || len(parts) > 3 {
-		return nil, errors.New("invalid format: expected '<type>/<name>/<alias>' or '<type>/<name>'")
-	}
-
-	typeValue := parts[0]
-	if typeValue != "backend" && typeValue != "provider" {
-		return nil, errors.New("invalid type: must be 'backend' or 'provider'")
-	}
-
-	res := &overrideTarget{
-		resourceType: typeValue,
-		name:         parts[1],
-	}
-
-	if len(parts) == 3 {
-		res.alias = parts[2]
-		res.hasAlias = true
-	}
-
-	return res, nil
 }
 
 func (t *Terraform) cleanup() {
@@ -75,13 +43,19 @@ func (t *Terraform) createOverrideFile() error {
 		return errors.New("could not find any terraform files matchin '*.tf' pattern")
 	}
 
-	for _, unparsedTarget := range t.TargetProviders {
-		target, err := parseTarget(unparsedTarget)
-		if err != nil {
-			return fmt.Errorf("invalid format for target %s", unparsedTarget)
+	for _, target := range t.Config.GetProviders() {
+		parts := strings.Split(target, "/")
+		if len(parts) != 2 {
+			return fmt.Errorf("invalid target format: %s", target)
 		}
 
-		for _, block := range t.generateProviderBlocks(files, target) {
+		providerType := parts[0]
+		providerName := parts[1]
+		proxyAddr := t.Config.GetProxyForProvider(providerName)
+
+		for _, block := range t.generateProviderBlocks(files, providerType, providerName) {
+			block.Body().AppendNewline()
+			block.Body().SetAttributeValue("https_proxy", cty.StringVal(proxyAddr))
 			body.AppendBlock(block)
 		}
 	}
@@ -89,38 +63,21 @@ func (t *Terraform) createOverrideFile() error {
 	return os.WriteFile(t.OverrideFilename, override.Bytes(), 0644)
 }
 
-func (t *Terraform) generateProviderBlocks(config []*hclwrite.File, target *overrideTarget) []*hclwrite.Block {
+func (t *Terraform) generateProviderBlocks(config []*hclwrite.File, providerType, providerName string) []*hclwrite.Block {
 	res := make([]*hclwrite.Block, 0)
 
 	for _, f := range config {
 		for _, block := range f.Body().Blocks() {
 			labels := block.Labels()
-			if block.Type() == target.resourceType && len(labels) > 0 && labels[0] == target.name {
-
-				if target.hasAlias {
-					resAlias := string(block.Body().GetAttribute("alias").Expr().BuildTokens(nil).Bytes())
-					resAlias = strings.Trim(strings.TrimSpace(resAlias), "\"")
-
-					if resAlias != target.alias {
-						continue
-					}
-
-				}
-
-				block.Body().AppendNewline()
-				block.Body().SetAttributeValue("https_proxy", cty.StringVal(t.ProxyAddr))
-
+			if block.Type() == providerType && len(labels) > 0 && labels[0] == providerName {
 				res = append(res, block)
 			}
 
 			if block.Type() == "terraform" {
 				for _, providerBlocks := range block.Body().Blocks() {
 					pl := providerBlocks.Labels()
-					if providerBlocks.Type() == target.resourceType && len(pl) > 0 && pl[0] == target.name {
-						providerBlocks.Body().AppendNewline()
-						providerBlocks.Body().SetAttributeValue("https_proxy", cty.StringVal(t.ProxyAddr))
+					if providerBlocks.Type() == providerType && len(pl) > 0 && pl[0] == providerName {
 						block.Body().AppendNewline()
-
 						res = append(res, block)
 					}
 				}
@@ -134,13 +91,14 @@ func (t *Terraform) generateProviderBlocks(config []*hclwrite.File, target *over
 func (t *Terraform) Run(args []string) error {
 	_, err := exec.LookPath(t.TerraformBinary)
 	if err != nil {
-		return fmt.Errorf("Terraform binary not found: %v\n", err)
+		return fmt.Errorf("Terraform binary not found: %v", err)
 	}
 
 	// make sure to delete override file
 	if !t.KeepOverrideFile {
 		defer t.cleanup()
 	}
+
 	err = t.createOverrideFile()
 	if err != nil {
 		return err
