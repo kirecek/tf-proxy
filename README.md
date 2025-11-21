@@ -1,10 +1,13 @@
 # tf-proxy
 
-⚠️ This tool is experimental and build for very specific use case. Any suggestions to make this more useful are very welcomed.
+One of the main reasons for the tool is limitation of `HTTP_PROXY` as described in the :octocat: issue [#17386](https://github.com/hashicorp/terraform/issues/17386)
+
+:bulb: A specialized wrapper for the Terraform binary that enables selective provider proxying. This tool allows you to intercept and modify Terraform provider configurations on-the-fly, making it particularly useful for testing, development, and specific deployment scenarios. Or in case you're in corporation that puts proxy in front of everything :smile: 
 
 ---
 
-A specialized wrapper for the Terraform binary that enables selective provider proxying. This tool allows you to intercept and modify Terraform provider configurations on-the-fly, making it particularly useful for testing, development, and specific deployment scenarios. Or in case you're in corporation that puts proxy in front of everything :smile: 
+⚠️ This tool is experimental and build for very specific use case. Any suggestions to make this more useful are very welcomed.
+
 
 ## Overview
 
