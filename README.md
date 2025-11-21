@@ -1,6 +1,6 @@
 # tf-proxy
 
-⚠️ This tool is experimental and under development. It's not recommended for any use right now, however, any suggestion/help is very welcomed.
+⚠️ This tool is experimental and build for very specific use case. Any suggestions to make this more useful are very welcomed.
 
 ---
 
